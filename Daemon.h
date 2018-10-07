@@ -12,6 +12,7 @@
 #include "Tintin_reporter.h"
 #include <cstdlib>
 #include <errno.h>
+#include <csignal>
 
 #define LOCKMODE (S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH)
 #define MAX_FD 1024
@@ -28,9 +29,9 @@ private:
     int                     m_CliFd[MAX_CLIENT];
     fd_set                  m_ReadFD;
     int                     m_CountClient;
+    struct timeval          m_TimeOut;
     bool                    m_status_running;
 
-    void    SignalsHandler(void);
     void    CloseAllFD(void);
     void    CreateServer(void);
     void    DaemonMode(void);
@@ -38,14 +39,14 @@ private:
     void    AcceptClient(void);
     void    AcceptFromClient(int index);
     bool    CheckLockAndLocked(void);
+
 public:
     Daemon(void);
     Daemon( Daemon const &src );
     Daemon	&operator=( Daemon const &rhs );
     ~Daemon(void);
     void Run(void);
-
+    void SignalsHandler(int signal);
 };
-
 
 #endif //MATT_DAEMON_DAEMON_H

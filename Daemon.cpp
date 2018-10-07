@@ -5,8 +5,11 @@ const char* Daemon::s_LockFilePath = "/var/lock/matt_daemon.lock";
 const uint16_t Daemon::s_port = 4242;
 const size_t Daemon::s_max_size = 1024;
 
-void Daemon::SignalsHandler(void) {
-
+void Daemon::SignalsHandler(int signal) {
+    if (signal == SIGTERM) {
+        m_Loger->log(INFO, std::string("Signal handler."));
+        m_status_running = false;
+    }
 }
 
 void Daemon::CloseAllFD(void) {
@@ -101,11 +104,7 @@ void Daemon::Reset(void) {
             FD_SET(m_CliFd[i], &m_ReadFD);
         }
     }
-    if (select(m_CountClient + 1, &m_ReadFD, NULL, NULL, NULL) == -1)
-    {
-        m_Loger->log(ERROR, std::string("The select is failure."));
-        exit(EXIT_FAILURE);
-    }
+    select(m_CountClient + 1, &m_ReadFD, NULL, NULL, &m_TimeOut);
 }
 
 void Daemon::AcceptClient(void) {
@@ -180,12 +179,12 @@ bool Daemon::CheckLockAndLocked(void) {
 }
 
 Daemon::Daemon(void) {
-
     if (getuid() != 0)
     {
         std::cout << "Permission denied. " << std::endl;//throw
         exit(EXIT_FAILURE);
     }
+
     CloseAllFD();
     if (!(m_Loger = new Tintin_reporter()))
     {
@@ -200,11 +199,12 @@ Daemon::Daemon(void) {
         write(m_LockFd, "FACK", 4);
     }
     m_Loger->log(INFO, std::string("Started."));
-    SignalsHandler();
     CreateServer();
     DaemonMode();
     std::memset(m_CliFd, 0, MAX_CLIENT * sizeof(int));
     m_status_running = false;
+    m_TimeOut.tv_sec = 0;
+    m_TimeOut.tv_usec = 0;
 }
 
 Daemon::Daemon(Daemon const &src) {
@@ -220,6 +220,8 @@ Daemon& Daemon::operator=( Daemon const &rhs ) {
         for (int i = 0; i  < MAX_CLIENT; i++)
             m_CliFd[i] = rhs.m_CliFd[i];
         m_CountClient = rhs.m_CountClient;
+        m_TimeOut.tv_sec = rhs.m_TimeOut.tv_sec;
+        m_TimeOut.tv_usec = rhs.m_TimeOut.tv_usec;
     }
     return *this;
 }
@@ -240,7 +242,7 @@ Daemon::~Daemon() {
 void Daemon::Run(void) {
 
     m_status_running = true;
-    while (m_status_running) {
+    while (m_status_running == true) {
         Reset();
         if (FD_ISSET(m_socket, &m_ReadFD))
             AcceptClient();

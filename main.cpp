@@ -1,15 +1,17 @@
-//
-// Created by alex on 24.09.18.
-//
 
 #include "Daemon.h"
 
+Daemon*    daemon1;
+
+void    signhendl(int sidn)
+{
+        daemon1->SignalsHandler(sidn);
+}
+
 int     main(void)
 {
-    //try {
-        Daemon  daemon;
-        daemon.Run();
-  //  }
-//    catch ()
-//    {}
+        daemon1 = new Daemon();
+        signal(SIGTERM, signhendl);
+        daemon1->Run();
+        delete daemon1;
 }
